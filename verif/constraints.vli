@@ -10,5 +10,21 @@ debug_req_i == 0 && //debug interface
 fetch_enable_i == 1 && //enable core
 instr_err_i == 0 && //instr mem access error
 lsu_load_err == 0 &&
-lsu_store_err == 0;
+lsu_store_err == 0 &&
+if_stage_i/prefetch_buffer_i/fifo_i/out_addr_o[1] == 0;
+end constraint;
+
+constraint instr_mem:=
+
+!instr_req_o || (instr_req_o && instr_gnt_i && next(instr_rvalid_i));
+end constraint;
+
+constraint data_mem:=
+
+!data_req_o || (data_req_o && data_gnt_i && next(data_rvalid_i));
+end constraint;
+
+constraint data_mem2:=
+
+!data_rvalid_i || (data_rvalid_i && prev(data_req_o));
 end constraint;

@@ -7,15 +7,12 @@ property reset;
         during[t,t+1]: rst_ni;
     prove:
         at t: !instr_req_o;
-        during[t,t+1]: !data_req_o;
-        at t+1: &if_stage_i/prefetch_buffer_i/rdata_outstanding_q == 0;
-        at t+1: conceptual_state;
+        at t: !data_req_o;
+        at t+1: conceptual_state_reset;
         at t+1: instr_addr_o == { boot_addr_i[31:8], 8'h80 };
         at t+1: pc_if == PC_frozen;
         at t+1:    foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == 0; end foreach;
-        at t+1:    if_stage_i/prefetch_buffer_i/fifo_i/valid == 0;
-        at t+1:    id_in_ready == 1;
-        at t+1:    if_stage_i/if_id_pipe_reg_we == 0; //IF to ID write enable
+
 right_hook: t+1;
 end property;
 
