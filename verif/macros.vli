@@ -13,6 +13,14 @@ macro boolean conceptual_state_reset :=
 	data_req_o == 0; 
 end macro;
 
+macro boolean conceptual_state_LSU := 
+	if_stage_i/prefetch_buffer_i/fifo_i/valid_q == 3'h0 &&
+	id_stage_i/controller_i/special_req == 0 &&
+	if_stage_i/if_id_pipe_reg_we == 0 && //IF to ID write enable
+	instr_req_o && 
+	data_req_o == 1;
+end macro;
+
 macro unsigned max_wait_inst_mem_gnt := 1 ; end macro; 
 macro unsigned max_wait_inst_mem_rvalid := 1 ; end macro;
 macro unsigned max_wait_data_mem_gnt := 1 ; end macro; 

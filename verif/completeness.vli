@@ -23,21 +23,6 @@ determination_assumptions:
 
 
 determination_requirements:
-  // imem interface
-  /*determined(imem_read_o), end_offset=-1;
-  if (imem_read_o)
-    determined(imem_addr_o)
-  endif, end_offset=-1;
-
-  // dmem interface
-  determined(dmem_enable_o);
-  if (dmem_enable_o)
-      determined(dmem_write_o),
-      determined(dmem_addr_o)
-  endif;
-  if (dmem_enable_o && dmem_write_o)
-      determined(dmem_data_o)
-  endif;*/
 determined(instr_req_o);
 if (instr_req_o)
     determined(instr_addr_o)
@@ -51,7 +36,7 @@ endif;
 if (data_req_o && data_we_o)
   determined(data_be_o),
   determined(data_addr_o),
-  determined(data_wdata_o)
+  determined(data_be_o == 4'h1? data_wdata_o[7:0] : data_be_o == 4'h3? data_wdata_o[15:0] : data_wdata_o)
 endif;
 
 
@@ -63,21 +48,18 @@ at right_hook: determined(id_stage_i/registers_i/rf_reg[2]); // visible register
 at right_hook: determined(id_stage_i/registers_i/rf_reg[3]); // visible register
 at right_hook: determined(id_stage_i/registers_i/rf_reg[4]); // visible register
 at right_hook: determined(id_stage_i/registers_i/rf_reg[5]); // visible register
-//at right_hook: determined(if_stage_i/prefetch_buffer_i/rdata_outstanding_q);
 at right_hook: determined(if_stage_i/if_id_pipe_reg_we);
 
 
 
 reset_property:
   reset;
-//instr_SB, instr_SH, instr_SW, instr_LB, instr_LH, instr_LW, instr_LBU,
- //               instr_LHU, instr_BEQ, instr_BNE, instr_BLT, instr_BGE, instr_BLTU,
-   //             instr_BGEU,
+// instr_BEQ, instr_BNE, instr_BLT, instr_BGE, instr_BLTU, instr_BGEU,        
 property_graph:
   all_instr :=  instr_ADDI, instr_SLTI, instr_SLTIU, instr_XORI, instr_ORI,
                 instr_ANDI, instr_SLLI, instr_SRLI, instr_SRAI, instr_ADD, instr_SUB,
                 instr_SLL, instr_SLT, instr_SLTU, instr_XOR, instr_SRL, instr_SRA,
-                instr_OR, instr_AND;
-
+                instr_OR, instr_AND, instr_LB, instr_LH, instr_LW, instr_LBU, instr_LHU,
+                instr_SB, instr_SH, instr_SW;
   reset, all_instr -> all_instr;
 end completeness;
