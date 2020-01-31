@@ -26,13 +26,11 @@ macro alu_op_e branch_operator(unsigned instr_func3) :=
     endcase;
 end macro;
 
-macro property instr_branch (unsigned instr_func3):=
+macro property instr_branch_taken (unsigned instr_func3):=
 disable iff: !rst_ni;
-    dependencies: empty;
+    dependencies: empty, instr_mem, data_mem, data_mem2;
     for timepoints:
-        t_gnt = t+0..max_wait_inst_mem_gnt waits_for complete instr_gnt_i,
-        t_gnt2 = t_gnt+1,
-        t_if = t_gnt2+0..max_wait_inst_mem_rvalid waits_for complete instr_rvalid_i,
+        t_if = t,
         t_id = t_if+1,
         t_wb = t_id+1;
     freeze:
@@ -48,31 +46,85 @@ disable iff: !rst_ni;
         rs2 = instr_rdata_i[24:20]@t_if,
         imm = instr_rdata_i[31:20]@t_if,
         PC_frozen = pc_if@t_if,
+        instr_addr_frozen = instr_addr_o@t_if,
         op1Data = id_stage_i/registers_i/rf_reg[rs1]@t_id,
         op2Data = id_stage_i/registers_i/rf_reg[rs2] @t_id,
-        regFile = id_stage_i/registers_i/rf_reg@t_id,
-        branch_taken = branch_dec(instr_func3, op1Data, op2Data)@t_id;
+        regFile = id_stage_i/registers_i/rf_reg@t_id;
     assume:
         //core state
-        at t:       conceptual_state;
-
-        //inst mem waits
-        at t:       bounded_inst_gnt_wait;
-        at t_gnt2:  bounded_inst_rvalid_wait;
-
-        //correct pipeline state
-        at t_gnt:   data_rvalid_i == 0;
-        at t_if-1:  if_stage_i/prefetch_buffer_i/fifo_i/valid == 0;
-        at t_if:    if_stage_i/prefetch_buffer_i/fifo_i/valid == 1;
-        at t_if:    id_in_ready == 1;
-        at t_if:    if_stage_i/if_id_pipe_reg_we == 1; //IF to ID write enable
-        at t_if:    if_stage_i/prefetch_buffer_i/fifo_i/out_addr_o[1] == 0; //uncompressed instr
+        at t_if:       conceptual_state;
 
         //inputs
         at t_if:    instr_rdata_i[6:0] == 7'h63; //set opcode
         at t_if:    instr_rdata_i[14:12] == instr_func3; //set func
         at t_if:    instr_rdata_i[19:15] < 6; //r0 to r5
         at t_if:    instr_rdata_i[24:20] < 6; //r0 to r5
+        at t_id:    branch_dec(instr_func3, op1Data, op2Data);
+                              
+    prove:
+        //IF output
+        at t_id:    instr_rdata_id[6:0] == opcode;
+        at t_id:    instr_rdata_id[11:7] == rd;
+        at t_id:    instr_rdata_id[14:12] == func3;
+        at t_id:    instr_rdata_id[19:15] == rs1;
+        at t_id:    instr_rdata_id[31:20] == imm;
+
+        //ID output
+        at t_id:    alu_operator_ex == branch_operator(instr_func3);
+        at t_id:    alu_operand_a_ex == op1Data;
+        at t_id:    alu_operand_b_ex == op2Data;
+
+        //EX output
+        at t_id:    id_stage_i/regfile_wdata_sel == RF_WD_EX;
+        at t_id:    instr_req_o == 1;
+        at t_id:    instr_addr_o == (instr_addr_frozen == 32'hfffffffc ? 32'h0 : instr_addr_frozen + 4);
+        at t_id:    data_req_o == 0;
+        //WB
+        at t_wb:    pc_mux_id == PC_JUMP;
+        at t_wb:    jump_target_ex == unsigned(signed(PC_frozen) + signed(Bimm))[31:0];
+        at t_wb:    foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == regFile[r]; end foreach;
+        at t_wb:    conceptual_state_branch;
+        at t_wb:    instr_addr_o == unsigned(signed(PC_frozen) + signed(Bimm))[31:0];
+        //PC
+        at t_wb:  pc_if == (PC_frozen == 32'hfffffffc ? 32'h0 : PC_frozen + 4);
+        at t_wb+1:  pc_if == unsigned(signed(PC_frozen) + signed(Bimm))[31:0];
+    right_hook: t_wb;
+end macro;
+
+macro property instr_branch_not_taken (unsigned instr_func3):=
+disable iff: !rst_ni;
+    dependencies: empty, instr_mem, data_mem, data_mem2;
+    for timepoints:
+        t_if = t,
+        t_id = t_if+1,
+        t_wb = t_id+1;
+    freeze:
+        Bimm3 = instr_rdata_i[7]@t_if,
+        Bimm1 = instr_rdata_i[11:8]@t_if,
+        Bimm2 = instr_rdata_i[30:25]@t_if,
+        Bimm4 = instr_rdata_i[31]@t_if,
+        Bimm = {Bimm4, Bimm3, Bimm2, Bimm1, 1'b0}@t_if,
+        opcode = instr_rdata_i[6:0]@t_if,
+        rd = instr_rdata_i[11:7]@t_if,
+        func3 = instr_rdata_i[14:12]@t_if,
+        rs1 = instr_rdata_i[19:15]@t_if,
+        rs2 = instr_rdata_i[24:20]@t_if,
+        imm = instr_rdata_i[31:20]@t_if,
+        PC_frozen = pc_if@t_if,
+        instr_addr_frozen = instr_addr_o@t_if,
+        op1Data = id_stage_i/registers_i/rf_reg[rs1]@t_id,
+        op2Data = id_stage_i/registers_i/rf_reg[rs2] @t_id,
+        regFile = id_stage_i/registers_i/rf_reg@t_id;
+    assume:
+        //core state
+        at t_if:       conceptual_state;
+
+        //inputs
+        at t_if:    instr_rdata_i[6:0] == 7'h63; //set opcode
+        at t_if:    instr_rdata_i[14:12] == instr_func3; //set func
+        at t_if:    instr_rdata_i[19:15] < 6; //r0 to r5
+        at t_if:    instr_rdata_i[24:20] < 6; //r0 to r5
+        at t_id:    !branch_dec(instr_func3, op1Data, op2Data);
                               
     prove:
         //IF output
@@ -91,12 +143,10 @@ disable iff: !rst_ni;
         at t_id:    id_stage_i/regfile_wdata_sel == RF_WD_EX;
 
         //WB
-        at t_wb:    if(branch_taken) pc_mux_id == PC_JUMP;endif ;
-        at t_wb:    if(branch_taken)jump_target_ex == unsigned(signed(PC_frozen) + signed(Bimm))[31:0];endif ;
         at t_wb:    foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == regFile[r]; end foreach;
         at t_id:    conceptual_state;
-
+        at t_id:    instr_addr_o == (instr_addr_frozen == 32'hfffffffc ? 32'h0 : instr_addr_frozen + 4);
         //PC
-        at t_wb+1:  if(branch_taken)pc_if == unsigned(signed(PC_frozen) + signed(Bimm))[31:0];endif ;
-    right_hook: t_wb+1;
+        at t_id:    pc_if == (PC_frozen == 32'hfffffffc ? 32'h0 : PC_frozen + 4);
+    right_hook: t_id;
 end macro;
