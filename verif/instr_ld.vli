@@ -33,7 +33,9 @@ disable iff: !rst_ni;
         loaded_data = corr_loaded_data(instr_func3)@t_wb;
     assume:
         //core state
-        at t_if:       conceptual_state;
+        at t_if:    conceptual_state;
+        at t_if:    instr_req_o;
+        at t_if:    !data_req_o;
 
         //inputs
         at t_if:    instr_rdata_i[6:0] == 7'h3; //set opcode
@@ -41,7 +43,6 @@ disable iff: !rst_ni;
         at t_if:    instr_rdata_i[11:7] > 0; //no wb to r0
         at t_if:    instr_rdata_i[14:12] == instr_func3; //set func
         at t_if:    instr_rdata_i[19:15] < 6; //r0 to r5     
-        at t_if:    res[1:0] == 2'h0; //alligned memory access
             
     prove:
         //IF output
@@ -67,12 +68,16 @@ disable iff: !rst_ni;
         at t_id:    data_be_o == (instr_func3[1:0] == 2'h0? 4'h1: instr_func3[1:0] == 2'h1? 4'h3 : 4'hF);
         
         //WB
+        at t_id:    foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == regFile[r]; end foreach;
+        at t_id:    conceptual_state;
+        at t_id:    instr_req_o;
+        at t_id:    data_req_o;
+        at t_id:    id_stage_i/controller_i/ctrl_fsm_cs == DECODE;
+        at t_id:    instr_addr_o == (instr_addr_frozen == 32'hfffffffc ? 32'h0 : instr_addr_frozen + 4);
+        at t_wb:    foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == regFile[r]; end foreach;
         at t_wb:      regfile_wdata_lsu == loaded_data;
         at t_wb+1:    id_stage_i/registers_i/rf_reg[rd] == loaded_data;
         at t_wb+1:    foreach r in 0..31: if(r != rd) id_stage_i/registers_i/rf_reg[r] == regFile[r];endif; end foreach;
-        at t_id:    conceptual_state_LSU;
-        at t_id:    instr_addr_o == (instr_addr_frozen == 32'hfffffffc ? 32'h0 : instr_addr_frozen + 4);
-
         //PC
         at t_id:    pc_if == (PC_frozen == 32'hfffffffc ? 32'h0 : PC_frozen + 4);
     right_hook: t_id;

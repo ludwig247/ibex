@@ -1,19 +1,23 @@
 property reset;
-    dependencies: empty;
+    dependencies: empty, instr_mem, data_mem, data_mem2;
     freeze:
-        PC_frozen = { boot_addr_i[31:8], 8'h80 }@t;
+        boot_addr = { boot_addr_i[31:8], 8'h80 }@t+1;
     assume:
         reset_sequence;
-        during[t,t+1]: rst_ni;
+        during[t,t+2]: rst_ni;
     prove:
-        at t: !instr_req_o;
-        at t: !data_req_o;
-        at t+1: conceptual_state_reset;
-        at t+1: instr_addr_o == { boot_addr_i[31:8], 8'h80 };
-        at t+1: pc_if == PC_frozen;
-        at t+1:    foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == 0; end foreach;
+        at t:       !instr_req_o;
+        during[t, t+2]:       !data_req_o;
+        during[t+1, t+2]:     instr_req_o;
+        at t+1:     instr_addr_o == { boot_addr[31:8], 8'h80 };
+        at t+2:     conceptual_state;
+        at t+2:     id_stage_i/controller_i/ctrl_fsm_cs == FIRST_FETCH;
+        at t+2:     instr_addr_o == { boot_addr[31:8], 8'h80 } + 4;
+        at t+2:     pc_if == { boot_addr[31:8], 8'h80 };
+        at t+2:     foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == 0; end foreach;
+        at t+3:     foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == 0; end foreach;
 
-right_hook: t+1;
+right_hook: t+2;
 end property;
 
 property instr_SB;

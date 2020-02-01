@@ -48,9 +48,16 @@ at right_hook: determined(id_stage_i/registers_i/rf_reg[2]); // visible register
 at right_hook: determined(id_stage_i/registers_i/rf_reg[3]); // visible register
 at right_hook: determined(id_stage_i/registers_i/rf_reg[4]); // visible register
 at right_hook: determined(id_stage_i/registers_i/rf_reg[5]); // visible register
+at right_hook+1: determined(id_stage_i/registers_i/rf_reg[0]); // visible register
+at right_hook+1: determined(id_stage_i/registers_i/rf_reg[1]); // visible register
+at right_hook+1: determined(id_stage_i/registers_i/rf_reg[2]); // visible register
+at right_hook+1: determined(id_stage_i/registers_i/rf_reg[3]); // visible register
+at right_hook+1: determined(id_stage_i/registers_i/rf_reg[4]); // visible register
+at right_hook+1: determined(id_stage_i/registers_i/rf_reg[5]); // visible register
 at right_hook: determined(if_stage_i/prefetch_buffer_i/fifo_i/valid_q);
 at right_hook: determined(id_stage_i/controller_i/special_req);
 at right_hook: determined(if_stage_i/if_id_pipe_reg_we);
+at right_hook: determined(id_stage_i/controller_i/ctrl_fsm_cs);
 
 
 

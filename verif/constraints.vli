@@ -11,7 +11,8 @@ fetch_enable_i == 1 && //enable core
 instr_err_i == 0 && //instr mem access error
 lsu_load_err == 0 &&
 lsu_store_err == 0 &&
-if_stage_i/prefetch_buffer_i/fifo_i/out_addr_o[1] == 0;
+if_stage_i/prefetch_buffer_i/fifo_i/out_addr_o[1] == 0 &&
+load_store_unit_i/data_addr == load_store_unit_i/data_addr_w_aligned; //alligned data memory access
 end constraint;
 
 constraint instr_mem:=
