@@ -16,16 +16,19 @@ load_store_unit_i/data_addr == load_store_unit_i/data_addr_w_aligned; //alligned
 end constraint;
 
 constraint instr_mem:=
-
 !instr_req_o || (instr_req_o && instr_gnt_i && next(instr_rvalid_i));
 end constraint;
 
-constraint data_mem:=
-
-!data_req_o || (data_req_o && data_gnt_i && next(data_rvalid_i));
+constraint bounded_data_gnt_wait := 
+    if (data_req_o)
+        exists i in 0..(max_wait_data_mem_gnt-1):
+            next(data_gnt_i,i);
+        end exists;
+    endif;
 end constraint;
 
-constraint data_mem2:=
-
-!data_rvalid_i || (data_rvalid_i && prev(data_req_o));
+constraint bounded_data_rvalid_wait := 
+        exists i in 0..(max_wait_data_mem_rvalid-1):
+            next(data_rvalid_i,i);
+        end exists;
 end constraint;

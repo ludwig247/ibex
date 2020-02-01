@@ -11,4 +11,9 @@ elaborate -golden
 set_mode mv
 set_itl_flavor vli
 read_itl {verif/macros.vli verif/prop.vli verif/constraints.vli verif/instr_alu.vli verif/instr_branch.vli verif/instr_ld.vli verif/instr_st.vli}
+read_itl {verif/completeness.vli}
+check_completeness -reset * "ibex"
+check_completeness -successor {* *} "ibex"
+check_completeness -determination {* *} "ibex"
+check -pass -force [get_properties]
 check [get_properties]

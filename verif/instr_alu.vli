@@ -29,7 +29,7 @@ end macro;
 
 macro property instr_ALU (unsigned instr_func3, instr_func7, mode, opcode):=
 disable iff: !rst_ni;
-    dependencies: empty, instr_mem, data_mem, data_mem2;
+    dependencies: empty, instr_mem, bounded_data_gnt_wait, bounded_data_rvalid_wait;
     for timepoints:
         t_if = t,
         t_id = t_if+1,
@@ -41,12 +41,12 @@ disable iff: !rst_ni;
         rs2 = instr_rdata_i[24:20]@t_if,
         shamt = rs2@t_if,
         imm = instr_rdata_i[31:20]@t_if,
-        PC_frozen = pc_if@t_if,
-        instr_addr_frozen = instr_addr_o@t_if,
+        PC_at_t_if = pc_if@t_if,
+        instr_addr_at_t_if = instr_addr_o@t_if,
         op1Data = id_stage_i/registers_i/rf_reg[rs1]@t_id,
         op2Data = mode == 0? signExtend(imm) : mode == 1? shamt : id_stage_i/registers_i/rf_reg[rs2] @t_id,
         res = ALU_result(instr_func3, instr_func7, op1Data, op2Data)@t_id,
-        regFile = id_stage_i/registers_i/rf_reg@t_id;
+        regFile_at_t_id = id_stage_i/registers_i/rf_reg@t_id;
     assume:
         //core state
         at t_if:    conceptual_state;
@@ -83,15 +83,16 @@ disable iff: !rst_ni;
         at t_id:    id_stage_i/regfile_waddr == rd;
 
         //WB
-        at t_id:    foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == regFile[r]; end foreach;
+        at t_id:    foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == regFile_at_t_id[r]; end foreach;
         at t_id:    conceptual_state;
         at t_id:    instr_req_o;
         at t_id:    !data_req_o;
-        at t_id:    instr_addr_o == (instr_addr_frozen == 32'hfffffffc ? 32'h0 : instr_addr_frozen + 4);
+        at t_id:    instr_addr_o == (instr_addr_at_t_if == 32'hfffffffc ? 32'h0 : instr_addr_at_t_if + 4);
         at t_id:    id_stage_i/controller_i/ctrl_fsm_cs == DECODE;
         at t_wb:    id_stage_i/registers_i/rf_reg[rd] == res;
-        at t_wb:    foreach r in 0..31: if(r != rd) id_stage_i/registers_i/rf_reg[r] == regFile[r];endif; end foreach;
+        at t_wb:    foreach r in 0..31: if(r != rd) id_stage_i/registers_i/rf_reg[r] == regFile_at_t_id[r];endif; end foreach;
+        
         //PC
-        at t_id:    pc_if == (PC_frozen == 32'hfffffffc ? 32'h0 : PC_frozen + 4);
+        at t_id:    pc_if == (PC_at_t_if == 32'hfffffffc ? 32'h0 : PC_at_t_if + 4);
     right_hook: t_id;
 end macro;

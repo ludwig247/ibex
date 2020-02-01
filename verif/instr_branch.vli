@@ -28,7 +28,7 @@ end macro;
 
 macro property instr_branch_taken (unsigned instr_func3):=
 disable iff: !rst_ni;
-    dependencies: empty, instr_mem, data_mem, data_mem2;
+    dependencies: empty, instr_mem, bounded_data_gnt_wait, bounded_data_rvalid_wait;
     for timepoints:
         t_if = t,
         t_id = t_if+1,
@@ -45,12 +45,12 @@ disable iff: !rst_ni;
         rs1 = instr_rdata_i[19:15]@t_if,
         rs2 = instr_rdata_i[24:20]@t_if,
         imm = instr_rdata_i[31:20]@t_if,
-        PC_frozen = pc_if@t_if,
-        instr_addr_frozen = instr_addr_o@t_if,
+        PC_at_t_if = pc_if@t_if,
+        instr_addr_at_t_if = instr_addr_o@t_if,
         instr_addr_at_t_wb = instr_addr_o@t_wb,
         op1Data = id_stage_i/registers_i/rf_reg[rs1]@t_id,
         op2Data = id_stage_i/registers_i/rf_reg[rs2] @t_id,
-        regFile = id_stage_i/registers_i/rf_reg@t_id;
+        regFile_at_t_id = id_stage_i/registers_i/rf_reg@t_id;
     assume:
         //core state
         at t_if:    conceptual_state;
@@ -80,31 +80,32 @@ disable iff: !rst_ni;
         //EX output
         at t_id:    id_stage_i/regfile_wdata_sel == RF_WD_EX;
         at t_id:    instr_req_o == 1;
-        at t_id:    instr_addr_o == (instr_addr_frozen == 32'hfffffffc ? 32'h0 : instr_addr_frozen + 4);
+        at t_id:    instr_addr_o == (instr_addr_at_t_if == 32'hfffffffc ? 32'h0 : instr_addr_at_t_if + 4);
         at t_id:    data_req_o == 0;
         //WB
         at t_wb:    pc_mux_id == PC_JUMP;
-        at t_wb:    jump_target_ex == unsigned(signed(PC_frozen) + signed(Bimm))[31:0];
-        at t_wb:    foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == regFile[r]; end foreach;
+        at t_wb:    jump_target_ex == unsigned(signed(PC_at_t_if) + signed(Bimm))[31:0];
+        at t_wb:    foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == regFile_at_t_id[r]; end foreach;
         at t_wb:    instr_req_o;
         at t_wb:    !data_req_o;
-        at t_wb:    instr_addr_o == unsigned(signed(PC_frozen) + signed(Bimm))[31:0];
-        at t_wb+1:    foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == regFile[r]; end foreach;
+        at t_wb:    instr_addr_o == unsigned(signed(PC_at_t_if) + signed(Bimm))[31:0];
+        at t_wb+1:    foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == regFile_at_t_id[r]; end foreach;
         at t_wb+1:    conceptual_state;
         at t_wb+1:    instr_req_o;
         at t_wb+1:    !data_req_o;
         at t_wb+1:    id_stage_i/controller_i/ctrl_fsm_cs == DECODE;
         at t_wb+1:    instr_addr_o == (instr_addr_at_t_wb == 32'hfffffffc ? 32'h0 : instr_addr_at_t_wb + 4);
-        at t_wb+2:    foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == regFile[r]; end foreach;
+        at t_wb+2:    foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == regFile_at_t_id[r]; end foreach;
+        
         //PC
-        at t_wb:  pc_if == (PC_frozen == 32'hfffffffc ? 32'h0 : PC_frozen + 4);
-        at t_wb+1:  pc_if == unsigned(signed(PC_frozen) + signed(Bimm))[31:0];
+        at t_wb:  pc_if == (PC_at_t_if == 32'hfffffffc ? 32'h0 : PC_at_t_if + 4);
+        at t_wb+1:  pc_if == unsigned(signed(PC_at_t_if) + signed(Bimm))[31:0];
     right_hook: t_wb+1;
 end macro;
 
 macro property instr_branch_not_taken (unsigned instr_func3):=
 disable iff: !rst_ni;
-    dependencies: empty, instr_mem, data_mem, data_mem2;
+    dependencies: empty, instr_mem, bounded_data_gnt_wait, bounded_data_rvalid_wait;
     for timepoints:
         t_if = t,
         t_id = t_if+1,
@@ -121,11 +122,11 @@ disable iff: !rst_ni;
         rs1 = instr_rdata_i[19:15]@t_if,
         rs2 = instr_rdata_i[24:20]@t_if,
         imm = instr_rdata_i[31:20]@t_if,
-        PC_frozen = pc_if@t_if,
-        instr_addr_frozen = instr_addr_o@t_if,
+        PC_at_t_if = pc_if@t_if,
+        instr_addr_at_t_if = instr_addr_o@t_if,
         op1Data = id_stage_i/registers_i/rf_reg[rs1]@t_id,
         op2Data = id_stage_i/registers_i/rf_reg[rs2] @t_id,
-        regFile = id_stage_i/registers_i/rf_reg@t_id;
+        regFile_at_t_id = id_stage_i/registers_i/rf_reg@t_id;
     assume:
         //core state
         at t_if:    conceptual_state;
@@ -156,14 +157,15 @@ disable iff: !rst_ni;
         at t_id:    id_stage_i/regfile_wdata_sel == RF_WD_EX;
 
         //WB
-        at t_id:    foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == regFile[r]; end foreach;
+        at t_id:    foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == regFile_at_t_id[r]; end foreach;
         at t_id:    conceptual_state;
         at t_id:    instr_req_o;
         at t_id:    !data_req_o;
         at t_id:    id_stage_i/controller_i/ctrl_fsm_cs == DECODE;
-        at t_id:    instr_addr_o == (instr_addr_frozen == 32'hfffffffc ? 32'h0 : instr_addr_frozen + 4);
-        at t_wb:    foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == regFile[r]; end foreach;
+        at t_id:    instr_addr_o == (instr_addr_at_t_if == 32'hfffffffc ? 32'h0 : instr_addr_at_t_if + 4);
+        at t_wb:    foreach r in 0..31: id_stage_i/registers_i/rf_reg[r] == regFile_at_t_id[r]; end foreach;
+        
         //PC
-        at t_id:    pc_if == (PC_frozen == 32'hfffffffc ? 32'h0 : PC_frozen + 4);
+        at t_id:    pc_if == (PC_at_t_if == 32'hfffffffc ? 32'h0 : PC_at_t_if + 4);
     right_hook: t_id;
 end macro;

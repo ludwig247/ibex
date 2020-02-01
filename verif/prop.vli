@@ -1,5 +1,5 @@
 property reset;
-    dependencies: empty, instr_mem, data_mem, data_mem2;
+    dependencies: empty, instr_mem, bounded_data_gnt_wait, bounded_data_rvalid_wait;
     freeze:
         boot_addr = { boot_addr_i[31:8], 8'h80 }@t+1;
     assume:
